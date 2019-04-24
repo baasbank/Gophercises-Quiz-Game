@@ -4,17 +4,14 @@ import (
 	"fmt"
 	"flag"
 	"os"
-	"bufio"
-	"encoding/json"
+	"strings"
 	"encoding/csv"
-	"io"
-	"log"
 )
 
 // QAndA - struct to transform the questions and answers to JSON
 type QAndA struct {
-		Question string `json:"question"`
-		Answer string `json:"answer"`
+		Question string
+		Answer string 
 	}
 
 func main () {
@@ -23,22 +20,39 @@ func main () {
 	
 	file, err := os.Open(*csvFileName)
 	if err != nil {
-		fmt.Println("Failed to open file")
+		fmt.Printf("Failed to open the CSV file: %s\n", *csvFileName)
 	}
-	reader := csv.NewReader(bufio.NewReader(file))
-	var qAndAnswers []QAndA
-	for {
-		line, error := reader.Read()
-		if error == io.EOF {
-			break
-		} else if error != nil {
-			log.Fatal(error)
+	reader := csv.NewReader(file)
+	lines, error := reader.ReadAll()
+	if error != nil {
+		fmt.Printf("Failed to parse %s\n", *csvFileName)
+	}
+	qAndAs := parseLines(lines)
+	correct := 0
+	wrong := 0
+	for index, question := range qAndAs {
+		var answer string
+		fmt.Printf("Question number %d: %s = ", index+1, question.Question)
+		_, error := fmt.Scan(&answer)
+		if error != nil {
+			fmt.Printf("Couldn't read answer")
 		}
-		qAndAnswers = append(qAndAnswers, QAndA{
+		if answer == question.Answer {
+			correct++
+		} else {
+			wrong++
+		}
+	}
+	fmt.Printf("You scored %d/%d\n", correct, len(qAndAs))
+}
+
+func parseLines(lines [][]string) []QAndA {
+	ret := make([]QAndA, len(lines))
+	for i, line := range lines {
+		ret[i] = QAndA{
 			Question: line[0],
-			Answer: line[1],
-		})
+			Answer: strings.TrimSpace(line[1]),
 		}
-		questionsAndAnswers, _ := json.Marshal(qAndAnswers)
-		fmt.Println(string(questionsAndAnswers))
+	}
+	return ret
 }
