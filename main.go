@@ -1,22 +1,26 @@
 package main
 
 import (
+	"encoding/csv"
 	"fmt"
 	"flag"
 	"os"
 	"strings"
-	"encoding/csv"
+	"time"
+	
 )
 
 // QAndA - struct to transform the questions and answers to JSON
 type QAndA struct {
-		Question string
-		Answer string 
+		question string
+		answer string 
 	}
 
 func main () {
 	csvFileName := flag.String("csv", "problems.csv", "a csv file containing questions and solutions in the form  'question,answer'")
+	timeLimit := flag.Int("time", 30, "a number denoting time limit for each question in seconds")
 	flag.Parse()
+
 	
 	file, err := os.Open(*csvFileName)
 	if err != nil {
@@ -28,19 +32,33 @@ func main () {
 		fmt.Printf("Failed to parse %s\n", *csvFileName)
 	}
 	qAndAs := parseLines(lines)
+
+	timer := time.NewTimer(time.Duration(*timeLimit) * time.Second)
+
 	correct := 0
-	wrong := 0
-	for index, question := range qAndAs {
-		var answer string
-		fmt.Printf("Question number %d: %s = ", index+1, question.Question)
-		_, error := fmt.Scan(&answer)
-		if error != nil {
-			fmt.Printf("Couldn't read answer")
-		}
-		if answer == question.Answer {
+	for index, csvRow := range qAndAs {
+		fmt.Printf("Question number %d: %s = ", index+1, csvRow.question)
+		inputChannel := make(chan string)
+		go func() {
+			var input string
+			_, error := fmt.Scan(&input)
+			if error != nil {
+				fmt.Printf("Couldn't read answer")
+			}
+			inputChannel <- input
+		}()
+		select {
+		case <-timer.C:
+			fmt.Println("\nYou exceeded your time limit")
+			fmt.Printf("You scored %d/%d\n", correct, len(qAndAs))
+			return
+		case input := <-inputChannel:
+			if input == csvRow.answer {
 			correct++
-		} else {
-			wrong++
+			fmt.Println("\u2713")
+			} else {
+				fmt.Println("\u2717")
+			}
 		}
 	}
 	fmt.Printf("You scored %d/%d\n", correct, len(qAndAs))
@@ -50,8 +68,8 @@ func parseLines(lines [][]string) []QAndA {
 	ret := make([]QAndA, len(lines))
 	for i, line := range lines {
 		ret[i] = QAndA{
-			Question: line[0],
-			Answer: strings.TrimSpace(line[1]),
+			question: line[0],
+			answer: strings.TrimSpace(line[1]),
 		}
 	}
 	return ret
