@@ -36,6 +36,7 @@ func main () {
 	timer := time.NewTimer(time.Duration(*timeLimit) * time.Second)
 
 	correct := 0
+	questionsLabel:
 	for index, csvRow := range qAndAs {
 		fmt.Printf("Question number %d: %s = ", index+1, csvRow.question)
 		inputChannel := make(chan string)
@@ -50,10 +51,9 @@ func main () {
 		select {
 		case <-timer.C:
 			fmt.Println("\nYou exceeded your time limit")
-			fmt.Printf("You scored %d/%d\n", correct, len(qAndAs))
-			return
+			break questionsLabel
 		case input := <-inputChannel:
-			if input == csvRow.answer {
+			if strings.ToLower(input) == strings.ToLower(csvRow.answer) {
 			correct++
 			fmt.Println("\u2713")
 			} else {
